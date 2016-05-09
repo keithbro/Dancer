@@ -302,64 +302,61 @@ sub dancer_response {
     $args ||= {};
     my $extra_env = {};
 
-    if ($method =~ /^(?:PUT|POST)$/) {
+    my ($content, $content_type);
 
-        my ($content, $content_type);
-
-        if ( $args->{body} and $args->{files} ) {
-            # XXX: When fixing this, update this method's POD
-            croak 'dancer_response() does not support both body and files';
-        }
-        elsif ( $args->{body} ) {
-            $content      = $args->{body};
-            $content_type = $args->{content_type}
-                || 'text/plain';
-
-            # coerce hashref into an url-encoded string
-            if ( ref($content) && ( ref($content) eq 'HASH' ) ) {
-                my @tokens;
-                while ( my ( $name, $value ) = each %{$content} ) {
-                    $name  = _url_encode($name);
-                    my @values = ref $value eq 'ARRAY' ? @$value : ($value);
-                    for my $value (@values) {
-                        $value = _url_encode($value);
-                        push @tokens, "${name}=${value}";
-                    }
-                }
-                $content = join( '&', @tokens );
-                $content_type = 'application/x-www-form-urlencoded';
-            }
-        }
-        elsif ( $args->{files} ) {
-            $content_type = 'multipart/form-data; boundary=----BOUNDARY';
-            foreach my $file (@{$args->{files}}){
-                $file->{content_type} ||= 'text/plain';
-                $content .= qq/------BOUNDARY\r\n/;
-                $content .= qq/Content-Disposition: form-data; name="$file->{name}"; filename="$file->{filename}"\r\n/;
-                $content .= qq/Content-Type: $file->{content_type}\r\n\r\n/;
-                if ( $file->{data} ) {
-                    $content .= $file->{data};
-                } else {
-                    open my $fh, '<', $file->{filename};
-                    if ( -B $file->{filename} ) {
-                        binmode $fh;
-                    }
-                    while (<$fh>) {
-                        $content .= $_;
-                    }
-                }
-                $content .= "\r\n";
-            }
-            $content .= "------BOUNDARY";
-        }
-
-        my $l = 0;
-        $l = length $content if defined $content;
-        open my $in, '<', \$content;
-        $extra_env->{'CONTENT_LENGTH'} = $l;
-        $extra_env->{'CONTENT_TYPE'}   = $content_type || "";
-        $extra_env->{'psgi.input'}     = $in;
+    if ( $args->{body} and $args->{files} ) {
+        # XXX: When fixing this, update this method's POD
+        croak 'dancer_response() does not support both body and files';
     }
+    elsif ( $args->{body} ) {
+        $content      = $args->{body};
+        $content_type = $args->{content_type}
+            || 'text/plain';
+
+        # coerce hashref into an url-encoded string
+        if ( ref($content) && ( ref($content) eq 'HASH' ) ) {
+            my @tokens;
+            while ( my ( $name, $value ) = each %{$content} ) {
+                $name  = _url_encode($name);
+                my @values = ref $value eq 'ARRAY' ? @$value : ($value);
+                for my $value (@values) {
+                    $value = _url_encode($value);
+                    push @tokens, "${name}=${value}";
+                }
+            }
+            $content = join( '&', @tokens );
+            $content_type = 'application/x-www-form-urlencoded';
+        }
+    }
+    elsif ( $args->{files} ) {
+        $content_type = 'multipart/form-data; boundary=----BOUNDARY';
+        foreach my $file (@{$args->{files}}){
+            $file->{content_type} ||= 'text/plain';
+            $content .= qq/------BOUNDARY\r\n/;
+            $content .= qq/Content-Disposition: form-data; name="$file->{name}"; filename="$file->{filename}"\r\n/;
+            $content .= qq/Content-Type: $file->{content_type}\r\n\r\n/;
+            if ( $file->{data} ) {
+                $content .= $file->{data};
+            } else {
+                open my $fh, '<', $file->{filename};
+                if ( -B $file->{filename} ) {
+                    binmode $fh;
+                }
+                while (<$fh>) {
+                    $content .= $_;
+                }
+            }
+            $content .= "\r\n";
+        }
+        $content .= "------BOUNDARY";
+    }
+
+    my $l = 0;
+    $l = length $content if defined $content;
+    open my $in, '<', \$content;
+    $extra_env->{'CONTENT_LENGTH'} = $l;
+    $extra_env->{'CONTENT_TYPE'}   = $content_type || "";
+    $extra_env->{'psgi.input'}     = $in;
 
     my ($params, $body, $headers) = @$args{qw(params body headers)};
 

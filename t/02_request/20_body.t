@@ -16,7 +16,7 @@ use LWP::UserAgent;
 use constant RAW_DATA => "foo=bar&bar=baz";
 
 plan tests => 2;
-my $host = '127.0.0.10';
+my $host = '127.0.0.1';
 Test::TCP::test_tcp(
     client => sub {
         my $port = shift;
